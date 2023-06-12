@@ -4,7 +4,7 @@ import csv
 
 from time import localtime, strftime
 from parse_config import parse_config
-from PyQt6.QtCore import QThread, QObject, Qt, pyqtSignal as Signal, pyqtSlot as Slot
+from PyQt6.QtCore import QThread, QObject, pyqtSignal as Signal, pyqtSlot as Slot, QEvent
 from PyQt6.QtWidgets import QApplication,  QMainWindow, QTableWidgetItem
 from PyQt6.QtGui import QIcon
 from termoline_ui import Ui_Termoline
@@ -29,9 +29,13 @@ class DataReceiver(QObject):
         if self.cont:
             while True:
                 print(self.cont)
+                if self.receiver_thread_stop:
+                    break
                 self.new_data_handler(COM)
         else:
             for _ in range(num):
+                if self.receiver_thread_stop:
+                    break
                 self.new_data_handler(COM)
         COM.close()
 
@@ -66,9 +70,9 @@ class Termoline(QMainWindow, Ui_Termoline):
         self.data_receiver.new_data.connect(self.update_table)
 
         self.data_receiver.moveToThread(self.receiver_thread)
-        self.receiver_thread.start()
 
     def start_button_clicked(self):
+        self.receiver_thread.start()
         self.table_first_upd = True
         self.data_receiver.receiver_thread_stop = False
         self.start_button.setEnabled(False)
@@ -81,6 +85,7 @@ class Termoline(QMainWindow, Ui_Termoline):
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self.line_edit_amount.setEnabled(True)
+        self.receiver_thread.exit()
 
     def cont_setter(self):
         if self.sender().isChecked():
@@ -160,4 +165,4 @@ class Termoline(QMainWindow, Ui_Termoline):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     termoline_window = Termoline()
-    app.exec()
+    sys.exit(app.exec())
