@@ -3,9 +3,9 @@ import csv
 import serial.tools.list_ports
 
 from time import localtime, strftime
-from parse_config import parse_config
+from parse_config import ParseConfig
 from PyQt6.QtCore import QThread, QObject, pyqtSignal as Signal, pyqtSlot as Slot, QTimer, QRegularExpression
-from PyQt6.QtWidgets import QApplication,  QMainWindow, QTableWidgetItem, QMessageBox
+from PyQt6.QtWidgets import QApplication,  QMainWindow, QTableWidgetItem, QMessageBox, QInputDialog
 from PyQt6.QtGui import QIcon, QFont, QRegularExpressionValidator
 from termoline_ui import Ui_Termoline
 
@@ -31,6 +31,7 @@ class DataReceiver(QObject):
     @Slot(int)
     def receive_data(self, num):
 
+        first_data = True
         COM = serial.Serial(port=f'{self.port_num}', baudrate=9600, bytesize=8, timeout=2,
                             stopbits=serial.STOPBITS_ONE)
 
@@ -38,13 +39,20 @@ class DataReceiver(QObject):
             while True:
                 if self.receiver_thread_stop:
                     break
-                self.new_data_handler(COM)
+                if not first_data:
+                    self.new_data_handler(COM)
+                else:
+                    first_data = False
         else:
             i = 0
             while i < num:
                 if self.receiver_thread_stop:
                     break
-                i += self.new_data_handler(COM)
+                if not first_data:
+                    i += self.new_data_handler(COM)
+                else:
+                    first_data = False
+
         self.disable_stop.emit()
         COM.close()
 
@@ -68,7 +76,7 @@ class Termoline(QMainWindow, Ui_Termoline):
         self.tableWidget.setFont(QFont("Courier New", 10))
         self.line_edit_amount.setText('50')
         pos_int_validator = QRegularExpressionValidator()
-        rx_pos_int = QRegularExpression("[1-9]+")
+        rx_pos_int = QRegularExpression("[0-9]+")
         pos_int_validator.setRegularExpression(rx_pos_int)
         self.line_edit_amount.setValidator(pos_int_validator)
         double_validator = QRegularExpressionValidator()
@@ -80,13 +88,20 @@ class Termoline(QMainWindow, Ui_Termoline):
         for el in list_ports:
             self.combo_box_com.addItem(el.name)
 
+        options = ParseConfig.get_options()
+        if options:
+            self.combo_box_com.setCurrentText(options[0])
+            self.line_edit_amount.setText(options[1])
+
         self.show()
 
         self.start_button.clicked.connect(self.start_button_clicked)
-        self.start_button.setEnabled(False)
+        if self.combo_box_com.currentText() == '':
+            self.start_button.setEnabled(False)
         self.stop_button.clicked.connect(self.stop_button_clicked)
         self.stop_button.setEnabled(False)
         self.download_button.clicked.connect(self.download_button_clicked)
+        self.download_as_button.clicked.connect(self.download_as_button_clicked)
         self.combo_box_com.currentIndexChanged.connect(self.combo_box_com_handler)
 
         self.data_receiver = DataReceiver()
@@ -103,11 +118,11 @@ class Termoline(QMainWindow, Ui_Termoline):
         self.timer.timeout.connect(self.data_processing_indication)
 
         try:
-            self.types_and_names, self.formulas = parse_config()
+            self.types_and_names, self.formulas = ParseConfig.parse_config()
         except KeyError:
             self.ini_error()
 
-        rows = ['Item №', 'Type', 'Name', 'Mean', 'RMSD']
+        rows = ['Item', 'Type', 'Name', 'Mean', 'RMSD']
         self.tableWidget.setRowCount(len(rows))
         self.tableWidget.setColumnCount(len(self.types_and_names) + 1)
         self.tableWidget.setColumnWidth(0, 75)
@@ -159,6 +174,7 @@ class Termoline(QMainWindow, Ui_Termoline):
         self.line_edit_amount.setEnabled(True)
         self.combo_box_com.setEnabled(True)
         self.timer.stop()
+        ParseConfig.config_write(self.combo_box_com.currentText(), self.line_edit_amount.text())
         self.guide_label.setText('<strong><font color="#2E8B57" size=4>Нажмите "Старт"</font></strong>')
 
     def data_processing_indication(self):
@@ -177,29 +193,46 @@ class Termoline(QMainWindow, Ui_Termoline):
             self.data_receiver.cont = False
             self.line_edit_amount.setEnabled(True)
 
-    def download_button_clicked(self):
-        self.download_button.setEnabled(False)
-        with open(f'Data_{strftime("%H-%M-%S", localtime())}.csv', 'w', newline='') as f:
+    def download_csv(self, filename: str):
+        with open(f'{filename}.csv', 'w', newline='') as f:
             writer = csv.writer(f, 'Semicolon')
             for row in range(self.tableWidget.rowCount()):
                 row_data = []
                 for col in range(self.tableWidget.columnCount()):
                     item = self.tableWidget.item(row, col)
                     if item is not None:
-                        row_data.append(item.text())
+                        row_data.append(item.text().replace('.', ','))
                 if self.line_edit_temp_ref.text():
                     if row <= 4 and row != 2:
                         row_data.append('-')
                     elif row > 4:
                         t_ref = self.line_edit_temp_ref.text()
-                        if len(t_ref) < 9:
-                            if ',' not in t_ref and '.' not in t_ref:
-                                t_ref += '.'
-                            t_ref += (9 - len(t_ref)) * '0'
-                        row_data.append(t_ref.replace(',', '.'))
+                        t_ref = t_ref.replace('.', ',')
+                        if len(t_ref) <= 6:
+                            add_diff = 0
+                            if ',' not in t_ref:
+                                t_ref += ','
+                            if len(t_ref.split(',')[0]) == 1 or (len(t_ref.split(',')[0]) == 2 and '-' in t_ref):
+                                add_diff += 1
+                            if '-' in t_ref:
+                                add_diff -= 1
+                            t_ref += (6 - len(t_ref) - add_diff) * '0'
+                        row_data.append(t_ref)
                     else:
                         row_data.append('tref')
                 writer.writerow(row_data)
+
+    def download_button_clicked(self):
+        self.download_button.setEnabled(False)
+        self.download_csv(f'Data_{strftime("%H-%M-%S", localtime())}')
+        self.downloaded.emit()
+        self.download_button.setEnabled(True)
+
+    def download_as_button_clicked(self):
+        self.download_as_button.setEnabled(False)
+        title, ok = QInputDialog.getText(self, 'Сохранить как', 'Имя файла:')
+        if ok and title:
+            self.download_csv(title)
         self.downloaded.emit()
         self.download_button.setEnabled(True)
 
@@ -217,7 +250,7 @@ class Termoline(QMainWindow, Ui_Termoline):
                 self.tableWidget.setColumnWidth(0, 75)
 
                 self.tableWidget.insertRow(0)
-                self.tableWidget.setItem(0, 0, QTableWidgetItem('Item №'))
+                self.tableWidget.setItem(0, 0, QTableWidgetItem('Item'))
                 self.tableWidget.item(0, 0).setFont(self.BoldFont)
                 for i in range(len(data_list)):
                     self.tableWidget.setColumnWidth(i + 1, 80)
@@ -266,17 +299,24 @@ class Termoline(QMainWindow, Ui_Termoline):
                             el = self.formulas[device_type][name][0] + self.formulas[device_type][name][1] * float(el)
                         except KeyError:
                             self.ini_error()
-                        el_str = "%.6f" % el
+                        el_str = "%.3f" % el
                     self.tableWidget.setItem(row, i + 1, QTableWidgetItem(el_str))
                     self.data_sum[i] += float(el)
                     mean = self.data_sum[i] / (self.tableWidget.rowCount() - 5)
                     self.data_sum_sq[i] += (float(el) - mean)**2
                     rmsd = (self.data_sum_sq[i] / (self.tableWidget.rowCount() - 5)) ** 0.5
-                    mean = "%.6f" % mean
+                    mean = "%.3f" % mean
                     rmsd = "%.2e" % rmsd
+                    if self.tableWidget.item(3, i + 1).text() == 'N/A':
+                        continue
                     self.tableWidget.setItem(3, i + 1, QTableWidgetItem(mean))
                     self.tableWidget.item(3, i + 1).setFont(self.BoldFont)
                     self.tableWidget.setItem(4, i + 1, QTableWidgetItem(rmsd))
+                    self.tableWidget.item(4, i + 1).setFont(self.BoldFont)
+                else:
+                    self.tableWidget.setItem(3, i + 1, QTableWidgetItem('N/A'))
+                    self.tableWidget.item(3, i + 1).setFont(self.BoldFont)
+                    self.tableWidget.setItem(4, i + 1, QTableWidgetItem('N/A'))
                     self.tableWidget.item(4, i + 1).setFont(self.BoldFont)
 
     def csv_downloaded(self):
@@ -300,3 +340,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     termoline_window = Termoline()
     sys.exit(app.exec())
+

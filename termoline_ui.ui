@@ -6,13 +6,13 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1006</width>
+    <width>1250</width>
     <height>600</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
-    <width>1000</width>
+    <width>1250</width>
     <height>600</height>
    </size>
   </property>
@@ -52,6 +52,22 @@
          </widget>
         </item>
         <item>
+         <widget class="QLabel" name="label_3">
+          <property name="maximumSize">
+           <size>
+            <width>105</width>
+            <height>20</height>
+           </size>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <property name="text">
+           <string>Номер COM порта</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QComboBox" name="combo_box_com">
           <property name="maximumSize">
            <size>
@@ -62,15 +78,15 @@
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="label_3">
+         <widget class="QLabel" name="label">
           <property name="maximumSize">
            <size>
-            <width>105</width>
+            <width>90</width>
             <height>20</height>
            </size>
           </property>
           <property name="text">
-           <string>Номер COM порта</string>
+           <string>Кол-во отчетов</string>
           </property>
          </widget>
         </item>
@@ -85,22 +101,44 @@
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="label">
+         <widget class="QRadioButton" name="radio_cont">
           <property name="maximumSize">
            <size>
-            <width>85</width>
-            <height>20</height>
+            <width>100</width>
+            <height>16777215</height>
            </size>
           </property>
+          <property name="layoutDirection">
+           <enum>Qt::RightToLeft</enum>
+          </property>
           <property name="text">
-           <string>Кол-во отчетов</string>
+           <string>Непрерывно</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QRadioButton" name="radio_cont">
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_2">
+          <property name="maximumSize">
+           <size>
+            <width>195</width>
+            <height>23</height>
+           </size>
+          </property>
           <property name="text">
-           <string>Непрерывно</string>
+           <string>Эталонное значение температуры</string>
           </property>
          </widget>
         </item>
@@ -121,19 +159,6 @@
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="label_2">
-          <property name="maximumSize">
-           <size>
-            <width>190</width>
-            <height>23</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>Эталонное значение температуры</string>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QPushButton" name="download_button">
           <property name="maximumSize">
            <size>
@@ -143,6 +168,19 @@
           </property>
           <property name="text">
            <string>Сохранить</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="download_as_button">
+          <property name="maximumSize">
+           <size>
+            <width>90</width>
+            <height>23</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>Сохранить как</string>
           </property>
          </widget>
         </item>
