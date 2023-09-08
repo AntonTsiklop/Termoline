@@ -6,10 +6,9 @@ class ParseConfig:
     @staticmethod
     def parse_config():
         config = configparser.ConfigParser()
-        config.read("termoline.ini")
+        config.read("sensors.ini")
 
         device_keys_list = [key for key in config.keys()][2:]
-
         types_and_names = [(value.split(',')[0], value.split(',')[1]) for value in config['userlist'].values()]
 
         formulas = {}
@@ -23,21 +22,18 @@ class ParseConfig:
     @staticmethod
     def config_write(com_num, amount):
         config = configparser.ConfigParser()
-        config.read('termoline.ini')
-        if 'options' not in config:
-            config['options'] = {'com_num': com_num, 'amount': amount}
-            with open('termoline.ini', 'w') as configfile:
-                config.write(configfile)
-        else:
-            config['options'] = {'com_num': com_num, 'amount': amount}
-            with open('termoline.ini', 'w') as configfile:
-                config.write(configfile)
+        config.read('options.ini')
+        config['options'] = {'com_num': com_num, 'amount': amount}
+        with open('options.ini', 'w') as configfile:
+            config.write(configfile)
 
     @staticmethod
     def get_options():
         config_current = configparser.ConfigParser()
-        config_current.read('termoline.ini')
+        config_current.read('options.ini')
         if 'options' in config_current:
             return config_current['options']['com_num'], config_current['options']['amount']
         return False
+
+
 
